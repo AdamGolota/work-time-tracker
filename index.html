@@ -305,6 +305,10 @@
         const k = e.key.toLowerCase();
         if (k === 's') start();
         else if (k === 'p') pause();
+        else if (k === ' ') {
+          if (state.isRunning) pause();
+          else start();
+        };
       });
 
       // --- Init ---
