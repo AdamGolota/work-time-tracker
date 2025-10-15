@@ -200,6 +200,15 @@
       function stopTicker(){
         if (timerId){ clearInterval(timerId); timerId = null; }
       }
+      function setFavicon(iconURL) {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          document.head.appendChild(link);
+        }
+        link.href = iconURL;
+      }
       function log(action){
         const entry = { action, ts: now(), elapsedMs: computeElapsed() };
         logs.unshift(entry); // newest first
@@ -214,6 +223,7 @@
         state.startTs = now();
         saveState();
         setButtons();
+        setFavicon('./running.ico');
         startTicker();
         log('start');
       }
@@ -224,6 +234,7 @@
         state.startTs = null;
         saveState();
         setButtons();
+        setFavicon('./favicon.ico');
         stopTicker();
         tick();
         log('pause');
