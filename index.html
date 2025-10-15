@@ -306,9 +306,10 @@
         if (k === 's') start();
         else if (k === 'p') pause();
         else if (k === ' ') {
+          e.preventDefault();
           if (state.isRunning) pause();
           else start();
-        };
+        }
       });
 
       // --- Init ---
