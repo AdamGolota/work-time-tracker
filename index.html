@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Work Time Tracker</title>
+  <style>
+    :root {
+      --bg: #0f172a;       /* slate-900 */
+      --panel: #111827;    /* gray-900 */
+      --muted: #94a3b8;    /* slate-400 */
+      --text: #e5e7eb;     /* gray-200 */
+      --accent: #22c55e;   /* green-500 */
+      --accent-2: #60a5fa; /* blue-400 */
+      --danger: #f43f5e;   /* rose-500 */
+      --ring: #334155;     /* slate-700 */
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #0b1220, #0f172a 35%, #111827);
+      color: var(--text);
+      font: 16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      display: grid; place-items: center; padding: 24px;
+    }
+    .app {
+      width: min(980px, 100%);
+      display: grid; gap: 18px;
+    }
+    .card {
+      background: rgba(17,24,39, 0.8);
+      border: 1px solid rgba(148,163,184,0.15);
+      border-radius: 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+    header.card { padding: 20px 22px; display:flex; align-items:center; justify-content:space-between; }
+    header h1 { margin:0; font-weight:700; letter-spacing:.3px; font-size: clamp(18px, 2.6vw, 22px); }
+    header .sub { color: var(--muted); font-size: 12px; }
+
+    .timer.card { padding: 26px; display: grid; gap: 18px; }
+    .display {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .5px;
+      text-align: center;
+      font-weight: 700;
+      font-size: clamp(40px, 9vw, 82px);
+    }
+    .segments { display:flex; gap:10px; justify-content:center; align-items:end; }
+    .segments small { color: var(--muted); display:block; text-align:center; margin-top:6px; font-size:12px; }
+
+    .controls { display:flex; flex-wrap:wrap; gap: 12px; justify-content:center; }
+    button {
+      appearance: none; border: 1px solid transparent; cursor: pointer;
+      background: #0b1325; color: var(--text);
+      padding: 12px 18px; border-radius: 999px; font-weight: 600; letter-spacing:.2px;
+      transition: transform .05s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+    }
+    button:focus { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+    button:hover { transform: translateY(-1px); }
+    .start { background: rgba(34,197,94,.15); border-color: rgba(34,197,94,.35); }
+    .pause { background: rgba(96,165,250,.12); border-color: rgba(96,165,250,.35); }
+    .reset { background: rgba(244,63,94,.12); border-color: rgba(244,63,94,.35); }
+    .disabled { opacity:.6; cursor:not-allowed; }
+
+    .log.card { padding: 0; overflow: hidden; }
+    .log header { display:flex; align-items:center; justify-content:space-between; padding: 16px 18px; border-bottom: 1px solid rgba(148,163,184,0.12); }
+    .log header h2 { margin:0; font-size: 16px; }
+    .log header .tools { display:flex; gap:10px; }
+    .log .list { max-height: 360px; overflow: auto; }
+    .log .row { display:grid; grid-template-columns: 130px 1fr 120px; gap:12px; padding: 12px 16px; align-items:center; border-bottom: 1px dashed rgba(148,163,184,0.12); }
+    .log .row:last-child { border-bottom: none; }
+    .log .action { font-weight:700; }
+    .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; border:1px solid rgba(148,163,184,0.25); color: var(--muted); width:max-content; }
+    .pill.running { color:#22c55e; border-color: rgba(34,197,94,.45); background: rgba(34,197,94,.08); }
+    .pill.paused  { color:#60a5fa; border-color: rgba(96,165,250,.45); background: rgba(96,165,250,.08); }
+    .pill.reset   { color:#f43f5e; border-color: rgba(244,63,94,.45); background: rgba(244,63,94,.08); }
+
+    .empty { color: var(--muted); text-align:center; padding: 24px; }
+    .footer { color: var(--muted); font-size:12px; text-align:center; padding: 8px; }
+    .muted { color: var(--muted); }
+    .nowrap { white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <main class="app" aria-labelledby="title">
+    <header class="card" role="banner">
+      <div>
+        <h1 id="title">Work Time Tracker</h1>
+        <div class="sub">Simple stopwatch + persistent action log (Local Storage)</div>
+      </div>
+      <div class="muted nowrap" id="tz"></div>
+    </header>
+
+    <section class="timer card" aria-label="Stopwatch">
+      <div class="display" id="display" aria-live="polite" aria-atomic="true">00:00:00.000</div>
+      <div class="controls" role="group" aria-label="Timer controls">
+        <button id="startBtn" class="start" aria-label="Start or resume (S)">Start</button>
+        <button id="pauseBtn" class="pause" aria-label="Pause (P)">Pause</button>
+        <button id="resetBtn" class="reset" aria-label="Reset (R)">Reset</button>
+      </div>
+      <div class="footer">
+        <span class="muted">Shortcuts:</span> <strong>S</strong> start/resume · <strong>P</strong> pause · <strong>R</strong> reset
+      </div>
+    </section>
+
+    <section class="log card" aria-label="Action log">
+      <header>
+        <h2>Button Hits</h2>
+        <div class="tools">
+          <button id="clearLogBtn" title="Clear log only" class="pause" aria-label="Clear log">Clear Log</button>
+          <button id="exportBtn" title="Download CSV" class="start" aria-label="Export CSV">Export CSV</button>
+        </div>
+      </header>
+      <div class="list" id="logList" role="list"></div>
+      <div class="footer">Timestamps use your local time.</div>
+    </section>
+  </main>
+
+  <script>
+    (function(){
+      const LS_KEYS = {
+        STATE: 'wt_stopwatch_state_v1',
+        LOGS:  'wt_action_logs_v1',
+      };
+
+      const els = {
+        display: document.getElementById('display'),
+        startBtn: document.getElementById('startBtn'),
+        pauseBtn: document.getElementById('pauseBtn'),
+        resetBtn: document.getElementById('resetBtn'),
+        tz: document.getElementById('tz'),
+        logList: document.getElementById('logList'),
+        clearLogBtn: document.getElementById('clearLogBtn'),
+        exportBtn: document.getElementById('exportBtn'),
+      };
+
+      const fmt = new Intl.DateTimeFormat(undefined, {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      });
+
+      // --- State ---
+      let timerId = null;
+      let state = loadState() || {
+        isRunning: false,
+        startTs: null,      // when user hit Start (ms epoch)
+        elapsedMs: 0,       // accumulated elapsed when paused (ms)
+      };
+      let logs = loadLogs();
+
+      // --- Helpers ---
+      function saveState(){
+        localStorage.setItem(LS_KEYS.STATE, JSON.stringify(state));
+      }
+      function loadState(){
+        try { return JSON.parse(localStorage.getItem(LS_KEYS.STATE)); } catch { return null; }
+      }
+      function saveLogs(){
+        localStorage.setItem(LS_KEYS.LOGS, JSON.stringify(logs));
+      }
+      function loadLogs(){
+        try {
+          const data = JSON.parse(localStorage.getItem(LS_KEYS.LOGS));
+          return Array.isArray(data) ? data : [];
+        } catch { return []; }
+      }
+      function now(){ return Date.now(); }
+      function formatTime(ms){
+        const sign = ms < 0 ? '-' : '';
+        ms = Math.abs(ms);
+        const hours = Math.floor(ms / 3_600_000); ms %= 3_600_000;
+        const mins  = Math.floor(ms / 60_000);    ms %= 60_000;
+        const secs  = Math.floor(ms / 1_000);
+        const milli = Math.floor(ms % 1_000);
+        const pad2 = n => String(n).padStart(2,'0');
+        const pad3 = n => String(n).padStart(3,'0');
+        return `${sign}${pad2(hours)}:${pad2(mins)}:${pad2(secs)}.${pad3(milli)}`;
+      }
+      function computeElapsed(){
+        if (state.isRunning && state.startTs != null) {
+          return state.elapsedMs + (now() - state.startTs);
+        }
+        return state.elapsedMs;
+      }
+      function setButtons(){
+        els.startBtn.classList.toggle('disabled', state.isRunning);
+        els.pauseBtn.classList.toggle('disabled', !state.isRunning);
+      }
+      function tick(){
+        els.display.textContent = formatTime(computeElapsed());
+      }
+      function startTicker(){
+        if (timerId) return;
+        timerId = setInterval(tick, 31); // ~32fps feels smooth, light on CPU
+      }
+      function stopTicker(){
+        if (timerId){ clearInterval(timerId); timerId = null; }
+      }
+      function log(action){
+        const entry = { action, ts: now(), elapsedMs: computeElapsed() };
+        logs.unshift(entry); // newest first
+        saveLogs();
+        renderLogs();
+      }
+
+      // --- Actions ---
+      function start(){
+        if (state.isRunning) return;
+        state.isRunning = true;
+        state.startTs = now();
+        saveState();
+        setButtons();
+        startTicker();
+        log('start');
+      }
+      function pause(){
+        if (!state.isRunning) return;
+        state.elapsedMs = computeElapsed();
+        state.isRunning = false;
+        state.startTs = null;
+        saveState();
+        setButtons();
+        stopTicker();
+        tick();
+        log('pause');
+      }
+      function reset(){
+        state.elapsedMs = 0;
+        if (state.isRunning) {
+          state.startTs = now();
+        }
+        saveState();
+        tick();
+        log('reset');
+      }
+
+      // --- Rendering ---
+      function renderLogs(){
+        if (!logs.length){
+          els.logList.innerHTML = `<div class="empty">No actions yet. Start the timer to populate the log.</div>`;
+          return;
+        }
+        const html = logs.map(item => {
+          const d = new Date(item.ts);
+          const when = fmt.format(d);
+          const kind = item.action;
+          return `<div class="row" role="listitem">
+            <div class="muted">${when}</div>
+            <div class="action">${kind.toUpperCase()}</div>
+            <div class="pill ${kind}">${formatTime(item.elapsedMs)}</div>
+          </div>`;
+        }).join('');
+        els.logList.innerHTML = html;
+      }
+
+      function exportCSV(){
+        const header = ['when_local','action','elapsed_ms','elapsed_hms'];
+        const rows = logs.slice().reverse().map(x => [
+          new Date(x.ts).toISOString(), // ISO for portability
+          x.action,
+          x.elapsedMs,
+          formatTime(x.elapsedMs)
+        ]);
+        const csv = [header, ...rows].map(r => r.map(cell => String(cell).replaceAll('"','""')).map(c => `"${c}"`).join(',')).join('\n');
+        const blob = new Blob([csv], {type:'text/csv'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'work-time-log.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function clearLog(){
+        if (!logs.length) return;
+        if (!confirm('Clear the log? This cannot be undone.')) return;
+        logs = [];
+        saveLogs();
+        renderLogs();
+      }
+
+      // --- Wire up ---
+      els.startBtn.addEventListener('click', start);
+      els.pauseBtn.addEventListener('click', pause);
+      els.resetBtn.addEventListener('click', reset);
+      els.exportBtn.addEventListener('click', exportCSV);
+      els.clearLogBtn.addEventListener('click', clearLog);
+
+      document.addEventListener('keydown', (e) => {
+        if (e.target && ['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
+        const k = e.key.toLowerCase();
+        if (k === 's') start();
+        else if (k === 'p') pause();
+        else if (k === 'r') reset();
+      });
+
+      // --- Init ---
+      els.tz.textContent = `Local time zone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+      setButtons();
+      renderLogs();
+      // If running, resume ticker and recompute continuously
+      if (state.isRunning) startTicker();
+      tick();
+    })();
+  </script>
+</body>
+</html>
